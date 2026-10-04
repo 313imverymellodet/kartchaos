@@ -157,7 +157,7 @@ public class UI : MonoBehaviour
         timerBox = Box(hud, new Vector2(.5f, 1), new Vector2(0, -80), new Vector2(260, 104), Dim);
         timerText = Txt(timerBox, "2:30", 66, new Vector2(.5f, .5f), new Vector2(0, 2), Color.white);
         timerText.fontStyle = FontStyle.Italic;
-        roomText = Txt(hud, "", 32, new Vector2(.5f, 1), new Vector2(0, -160), Soft);
+        roomText = Txt(hud, "", 44, new Vector2(.5f, 1), new Vector2(0, -168), Cyan); roomText.fontStyle = FontStyle.Italic; Outline(roomText, 3);
         // scoreboard
         board = Rect("board", hud, new Vector2(0, 1), new Vector2(20 + 230, -40 - 0), new Vector2(460, 520));
         board.pivot = new Vector2(.5f, 1); board.anchoredPosition = new Vector2(250, -28);
