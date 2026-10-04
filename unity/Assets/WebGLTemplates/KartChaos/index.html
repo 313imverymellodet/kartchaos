@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>KART CHAOS — online kart battle!</title>
+  <meta name="description" content="Top-down kart battle: grab item boxes, fire rockets, drop mines and spin out your rivals. Online matches with bots filling every seat. Free, no download.">
+  <meta name="theme-color" content="#1b1340">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="KART CHAOS — online kart battle!">
+  <meta property="og:description" content="Rockets, mines and bumper karts. Jump into a 2:30 battle - free, no download.">
+  <meta property="og:image" content="__SITE_URL__/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="__SITE_URL__/og.png">
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #1b1340; touch-action: none; overscroll-behavior: none;
+      -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #fff; }
+    #unity-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; background: #1b1340; outline: none; }
+    #loader { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5;
+      background: radial-gradient(circle at 50% 38%, #3a2a8a 0%, #1b1340 70%); transition: opacity .5s; overflow: hidden; }
+    #loader.done { opacity: 0; pointer-events: none; }
+    .kart { position: relative; width: 150px; height: 90px; animation: bob .5s ease-in-out infinite alternate; }
+    .kart .b { position: absolute; left: 10px; right: 10px; top: 14px; height: 46px; border-radius: 22px 30px 14px 14px; background: linear-gradient(#ff7aa6, #ff4f8b); box-shadow: inset 0 -8px 0 rgba(0,0,0,.18); }
+    .kart .h { position: absolute; left: 52px; top: -8px; width: 44px; height: 40px; border-radius: 50%; background: #ffd84a; box-shadow: inset -6px -6px 0 rgba(0,0,0,.15); }
+    .kart .w { position: absolute; bottom: 0; width: 38px; height: 38px; border-radius: 50%; background: #2e2a44; border: 6px solid #4a4566; box-sizing: border-box; animation: spin .4s linear infinite; }
+    .kart .w1 { left: 4px; } .kart .w2 { right: 4px; }
+    .kart .w::after { content: ""; position: absolute; left: 50%; top: 2px; width: 4px; height: 10px; margin-left: -2px; background: #8a85aa; border-radius: 2px; }
+    .road { width: 260px; height: 6px; margin-top: 6px; border-radius: 6px; background: repeating-linear-gradient(90deg, #ffd84a 0 24px, transparent 24px 44px); animation: road .5s linear infinite; opacity: .7; }
+    @keyframes bob { to { transform: translateY(-5px); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes road { to { background-position: -44px 0; } }
+    h1 { margin: 26px 0 4px; font-size: 56px; font-weight: 900; font-style: italic; letter-spacing: 3px; color: #ffd84a; text-shadow: 0 6px 0 #ff4f8b; }
+    .tag { opacity: .75; font-weight: 800; letter-spacing: 3px; font-size: 13px; }
+    .bar { width: 240px; height: 10px; border-radius: 10px; background: rgba(255,255,255,.14); margin-top: 28px; overflow: hidden; }
+    .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #35d6ff, #ff4f8b); transition: width .2s; border-radius: 10px; }
+    #err { display: none; max-width: 320px; text-align: center; margin-top: 18px; font-size: 14px; opacity: .85; }
+  </style>
+</head>
+<body>
+  <script>
+    // First-party analytics: anonymous daily event counts on the shared game server (no personal data).
+    (function () {
+      var P = window.PORTAL || "web";
+      var G = "kartchaos" + ({ crazygames: "_cg", poki: "_poki", gd: "_gd" }[P] || ""), API = new URLSearchParams(location.search).get("api") || "https://orbyt-api-production-29f6.up.railway.app";
+      var q = [], uid;
+      try { uid = localStorage.getItem("ev_uid"); if (!uid) { uid = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem("ev_uid", uid); } } catch (e) { uid = Math.random().toString(36).slice(2, 14); }
+      function flush() {
+        if (!q.length) return;
+        var body = JSON.stringify({ g: G, s: uid, e: q.splice(0, 60) });
+        try { if (navigator.sendBeacon && navigator.sendBeacon(API + "/api/ev", body)) return; } catch (e) {}
+        try { fetch(API + "/api/ev", { method: "POST", body: body, keepalive: true }); } catch (e) {}
+      }
+      window.__ev = function (name, value) {
+        q.push([String(name).toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 40), Math.round(Number(value) || 0)]);
+        if (q.length >= 40) flush();
+      };
+      setInterval(flush, 15000);
+      addEventListener("pagehide", flush);
+      document.addEventListener("visibilitychange", function () { if (document.hidden) flush(); });
+      window.__ev("page_view", 0);
+      if (document.referrer) try { window.__ev("ref_" + new URL(document.referrer).hostname.replace(/^www\./, "").split(".")[0], 0); } catch (e) {}
+    })();
+  </script>
+
+  <canvas id="unity-canvas" tabindex="-1"></canvas>
+  <div id="loader">
+    <div class="kart"><div class="h"></div><div class="b"></div><div class="w w1"></div><div class="w w2"></div></div>
+    <div class="road"></div>
+    <h1>KART CHAOS</h1>
+    <div class="tag">BUMP · BLAST · BATTLE</div>
+    <div class="bar"><i id="fill"></i></div>
+    <div id="err"></div>
+  </div>
+  <div id="toast" style="position:fixed;left:50%;bottom:40px;transform:translateX(-50%);background:#ff4f8b;color:#fff;font-weight:800;padding:12px 20px;border-radius:999px;opacity:0;transition:opacity .25s;z-index:30;pointer-events:none"></div>
+  <script>
+    // ---- Portal adapter. tools/portals.mjs sets window.PORTAL and adds the portal's SDK script:
+    //   "crazygames" (CrazyGames SDK v3), "poki" (Poki SDK v2), "gd" (GameDistribution), or "web" (our own site: no ads).
+    // Every ad mutes + freezes the game (WebBridge.Hold) and resumes when the SDK hands control back.
+    (function () {
+      var P = window.PORTAL || "web";
+      var poki = function () { return P === "poki" && window.PokiSDK; };
+      var crazy = function () { return P === "crazygames" && window.CrazyGames && window.CrazyGames.SDK; };
+      var gd = function () { return P === "gd" && window.gdsdk; };
+      var send = function (m, v) { try { window.unityInstance && window.unityInstance.SendMessage("WebBridge", m, v); } catch (e) {} };
+      // never hang the game on an SDK that does not call back
+      var guard = function (p, ms, fallback) { return Promise.race([p, new Promise(function (r) { setTimeout(function () { r(fallback); }, ms); })]); };
+      window.smToast = function (m) { var t = document.getElementById("toast"); t.textContent = m; t.style.opacity = 1; clearTimeout(window.__gt); window.__gt = setTimeout(function () { t.style.opacity = 0; }, 2000); };
+
+      // GameDistribution pauses/resumes the game itself around its ads
+      var gdPaused = false, gdReward = false;
+      window.__gdEvent = function (e) {
+        if (e.name === "SDK_GAME_PAUSE" && !gdPaused) { gdPaused = true; send("OnAdPause", "1"); }
+        else if (e.name === "SDK_GAME_START" && gdPaused) { gdPaused = false; send("OnAdPause", "0"); }
+        else if (e.name === "SDK_REWARDED_WATCH_COMPLETE") gdReward = true;
+      };
+
+      var lastMid = 0, midCalls = 0;
+      window.SD = {
+        portal: P,
+        init: function () {
+          var p = Promise.resolve();
+          try {
+            if (crazy()) p = window.CrazyGames.SDK.init().then(function () {
+              // signed-in CrazyGames players get their username pre-filled on the leaderboard prompt
+              try { crazy().user.getUser().then(function (u) { if (u && u.username) window.__portalName = String(u.username).toUpperCase().replace(/[^A-Z0-9 _.-]/g, "").slice(0, 12); }).catch(function () {}); } catch (e) {}
+            });
+            else if (poki()) p = window.PokiSDK.init();
+          } catch (e) {}
+          return guard(p.catch(function () {}), 4000);
+        },
+        adsAvailable: function () { return !!(poki() || crazy() || gd()); },
+        rewarded: function () {
+          window.SD.track("ad_rewarded", 0);
+          if (poki()) return guard(poki().rewardedBreak(function () {}).then(function (ok) { return !!ok; }), 60000, false);
+          if (crazy()) return guard(new Promise(function (res) {
+            crazy().ad.requestAd("rewarded", { adStarted: function () {}, adFinished: function () { res(true); }, adError: function () { res(false); } });
+          }), 60000, false);
+          if (gd()) {
+            gdReward = false;
+            var show = function () { return gd().showAd("rewarded"); };
+            return guard((gd().preloadAd ? gd().preloadAd("rewarded").then(show) : show()).then(function () { return gdReward; }, function () { return false; }), 60000, false);
+          }
+          return Promise.resolve(false);
+        },
+        // Interstitial before a round. Poki wants commercialBreak before every gameplayStart and rate-limits itself;
+        // elsewhere we skip the session's first round (the portal already ran a preroll) and keep 60 s between ads.
+        midgame: function () {
+          var now = Date.now();
+          midCalls++;
+          if (!poki() && (midCalls === 1 || now - lastMid < 60000)) return Promise.resolve();
+          lastMid = now;
+          window.SD.track("ad_midgame", 0);
+          var p;
+          if (poki()) p = poki().commercialBreak(function () {});
+          else if (crazy()) p = new Promise(function (res) { crazy().ad.requestAd("midgame", { adStarted: function () {}, adFinished: res, adError: res }); });
+          else if (gd()) p = gd().showAd();
+          else p = Promise.resolve();
+          return guard(p.then(function () {}, function () {}), 60000);
+        },
+        gameplay: function (on) {
+          try { if (poki()) on ? poki().gameplayStart() : poki().gameplayStop(); } catch (e) {}
+          try { if (crazy()) on ? crazy().game.gameplayStart() : crazy().game.gameplayStop(); } catch (e) {}
+        },
+        happy: function () { try { if (crazy()) crazy().game.happytime(); } catch (e) {} },
+        loading: function () { try { if (crazy()) crazy().game.loadingStart(); } catch (e) {} },
+        ready: function () {
+          try { if (poki()) poki().gameLoadingFinished(); } catch (e) {}
+          try { if (crazy()) crazy().game.loadingStop(); } catch (e) {}
+        },
+        track: function (name, value) {
+          try { window.__ev && window.__ev(name, value); } catch (e) {}
+        }
+      };
+      ["gesturestart", "gesturechange", "contextmenu", "dblclick"].forEach(function (ev) {
+        document.addEventListener(ev, function (e) { e.preventDefault(); }, { passive: false });
+      });
+      document.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
+      // keep Space / arrows / PageUp-Down from scrolling the portal page around the game frame
+      window.addEventListener("keydown", function (e) {
+        if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;   // the leaderboard name box still types normally
+        if ([" ", "Spacebar", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown"].indexOf(e.key) >= 0) e.preventDefault();
+      }, { passive: false });
+      window.addEventListener("wheel", function (e) { e.preventDefault(); }, { passive: false });
+    })();
+
+    (function () {
+      var canvas = document.getElementById("unity-canvas"), loader = document.getElementById("loader");
+      var fill = document.getElementById("fill"), err = document.getElementById("err");
+      var buildUrl = "Build";
+      var config = {
+        dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
+        frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
+#if USE_THREADS
+        workerUrl: buildUrl + "/{{{ WORKER_FILENAME }}}",
+#endif
+#if USE_WASM
+        codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
+#endif
+#if MEMORY_FILENAME
+        memoryUrl: buildUrl + "/{{{ MEMORY_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+        symbolsUrl: buildUrl + "/{{{ SYMBOLS_FILENAME }}}",
+#endif
+        streamingAssetsUrl: "StreamingAssets",
+        autoSyncPersistentDataPath: true,
+        companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+        productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+        productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+        showBanner: function (msg, type) { if (type === "error") { err.style.display = "block"; err.textContent = msg; } console.warn(msg); }
+      };
+      var s = document.createElement("script");
+      s.src = buildUrl + "/{{{ LOADER_FILENAME }}}";
+      s.onload = function () {
+        window.SD.loading();
+        createUnityInstance(canvas, config, function (p) { fill.style.width = Math.round(8 + p * 92) + "%"; })
+          .then(function (inst) { window.unityInstance = inst;
+            document.addEventListener("visibilitychange", function () { if (document.hidden) { try { inst.SendMessage("Game", "Persist"); } catch (e) {} } });
+            window.addEventListener("pagehide", function () { try { inst.SendMessage("Game", "Persist"); } catch (e) {} }); fill.style.width = "100%"; setTimeout(function () { loader.classList.add("done"); canvas.focus(); }, 300); })
+          .catch(function (m) { err.style.display = "block"; err.textContent = "Couldn't start: " + m; });
+      };
+      // portal SDKs must be initialised before anything else talks to them
+      window.SD.init().then(function () { document.body.appendChild(s); });
+    })();
+  </script>
+  <script src="kart.js"></script>
+</body>
+</html>
