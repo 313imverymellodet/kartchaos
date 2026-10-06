@@ -166,8 +166,9 @@ public class UI : MonoBehaviour
             var r = Box(board, new Vector2(.5f, 1), new Vector2(0, -32 - i * 60), new Vector2(460, 54), Dim);
             var rank = Txt(r, (i + 1).ToString(), 32, new Vector2(0, .5f), new Vector2(34, 0), Soft, TextAnchor.MiddleCenter, 60);
             var dot = Img(r, disc, new Vector2(0, .5f), new Vector2(80, 0), new Vector2(26, 26));
+            Img(r, coinSpr, new Vector2(1, .5f), new Vector2(-82, 0), new Vector2(34, 34));
             var nm = Txt(r, "", 32, new Vector2(0, .5f), new Vector2(102 + 140, 0), Color.white, TextAnchor.MiddleLeft, 280);
-            var sc = Txt(r, "0", 36, new Vector2(1, .5f), new Vector2(-40, 0), Gold, TextAnchor.MiddleCenter, 80);
+            var sc = Txt(r, "0", 36, new Vector2(1, .5f), new Vector2(-36, 0), Gold, TextAnchor.MiddleCenter, 70);
             rows.Add((r, rank, dot, nm, sc));
         }
         // kill feed
@@ -258,7 +259,7 @@ public class UI : MonoBehaviour
             var k = order[idx];
             rows[i].rank.text = (idx + 1).ToString();
             rows[i].dot.color = k.Tint;
-            rows[i].name.text = k.IsMe ? "YOU" : k.Name;
+            rows[i].name.text = (k.Golden ? "* " : "") + (k.IsMe ? "YOU" : k.Name);
             rows[i].name.color = k.IsMe ? Gold : Color.white;
             rows[i].score.text = g.Scores[k.Slot].ToString();
             rows[i].row.GetComponent<Image>().color = k.IsMe ? new Color(0.35f, 0.2f, 0.6f, 0.85f) : Dim;
@@ -332,7 +333,7 @@ public class UI : MonoBehaviour
                  : "";
         coachBox.gameObject.SetActive(t.Length > 0);
         coachText.text = t;
-        if (stage == 3) Banner("NICE!", "most hits in 2:30 wins");
+        if (stage == 3) Banner("NICE!", "hits spill coins - grab them!");
     }
 
     // ---------------------------------------------------------------- name tags
@@ -422,13 +423,13 @@ public class UI : MonoBehaviour
         if (Landscape) { var back = Box(col, new Vector2(.5f, .5f), Vector2.zero, new Vector2(1060, 1880), new Color(0.06f, 0.03f, 0.18f, 0.55f)); back.SetAsFirstSibling(); }
         else { Kit.Scrim(s, true, 700, new Color(0.06f, 0.03f, 0.18f, 0.6f)); Kit.Scrim(s, false, 1000, new Color(0.06f, 0.03f, 0.18f, 0.75f)); }
         Title(col, "KART", "CHAOS", -250, 230);
-        Txt(col, "bump - blast - be the last kart spinning", 38, new Vector2(.5f, 1), new Vector2(0, -620), Color.white, TextAnchor.MiddleCenter, 1000);
+        Txt(col, "hit karts - spill their coins - steal the crown", 38, new Vector2(.5f, 1), new Vector2(0, -620), Color.white, TextAnchor.MiddleCenter, 1000);
         CoinPill(s, new Vector2(1, 1), new Vector2(-190, -80));
 
         string code = WebBridge.RoomCode();
         var play = Btn(col, code.Length > 0 ? "JOIN ROOM " + code.ToUpperInvariant() : "PLAY", new Vector2(.5f, 0), new Vector2(0, 880), new Vector2(760, 200), Pink, Color.white, () => g.Play(false), 100);
         StartCoroutine(Pulse(play.transform));
-        Txt(col, "online battle  -  2:30 matches  -  bots fill empty seats", 32, new Vector2(.5f, 0), new Vector2(0, 750), Soft, TextAnchor.MiddleCenter, 1000);
+        Txt(col, "online coin heist  -  2:30 matches  -  bots fill empty seats", 32, new Vector2(.5f, 0), new Vector2(0, 750), Soft, TextAnchor.MiddleCenter, 1000);
         Btn(col, "PLAY WITH FRIENDS", new Vector2(.5f, 0), new Vector2(0, 620), new Vector2(760, 130), Cyan, Ink, ShowFriends, 52);
         Btn(col, "GARAGE  -  " + Vehicles.All[g.Save.vehicle].Name, new Vector2(.5f, 0), new Vector2(0, 470), new Vector2(760, 130), Gold, Ink, () => g.OpenGarage(), 52);
         Btn(col, "DRIVER: " + g.Save.name, new Vector2(.5f, 0), new Vector2(-190, 330), new Vector2(370, 110), Dim, Color.white, () => WebBridge.AskName(g.Save.name), 34);
@@ -456,7 +457,7 @@ public class UI : MonoBehaviour
         var col = Column(s);
         var t = Txt(col, "HOW TO PLAY", 96, new Vector2(.5f, 1), new Vector2(0, -200), Gold); t.fontStyle = FontStyle.Italic; Outline(t, 5);
         Txt(col, Touch ? "Drag on the left side to steer and go.\nTap the item button to fire." : "WASD / arrows to drive.  SPACE to fire.", 40, new Vector2(.5f, 1), new Vector2(0, -340), Color.white, TextAnchor.MiddleCenter, 980).lineSpacing = 1.1f;
-        Txt(col, "Drive through  ?  boxes to get an item.\nEvery hit you land is a point.  Most points in 2:30 wins.", 36, new Vector2(.5f, 1), new Vector2(0, -470), Soft, TextAnchor.MiddleCenter, 980).lineSpacing = 1.1f;
+        Txt(col, "COINS are your score. Hit a kart and half its coins SPILL - grab them!\nThe leader wears the GOLD CROWN and spills more. Last 30s: the ring closes in.", 32, new Vector2(.5f, 1), new Vector2(0, -470), Soft, TextAnchor.MiddleCenter, 980).lineSpacing = 1.1f;
         string[] what = { "", "flies straight - lead your target", "three rockets in a spread", "chases the nearest kart ahead", "drops behind you - don't follow too close", "blocks one hit", "speed burst - ram anyone for a point" };
         for (int i = 1; i <= 6; i++)
         {
@@ -498,7 +499,8 @@ public class UI : MonoBehaviour
             Txt(r, ord[i], 40, new Vector2(0, .5f), new Vector2(70, 0), i == 0 ? Gold : Color.white, TextAnchor.MiddleCenter, 120).fontStyle = FontStyle.Italic;
             Img(r, disc, new Vector2(0, .5f), new Vector2(150, 0), new Vector2(30, 30)).color = k.Tint;
             Txt(r, k.IsMe ? "YOU (" + k.Name + ")" : k.Name, 40, new Vector2(0, .5f), new Vector2(180 + 250, 0), Color.white, TextAnchor.MiddleLeft, 500);
-            Txt(r, g.Scores[k.Slot] + (g.Scores[k.Slot] == 1 ? " HIT" : " HITS"), 40, new Vector2(1, .5f), new Vector2(-110, 0), Gold, TextAnchor.MiddleCenter, 200);
+            Img(r, coinSpr, new Vector2(1, .5f), new Vector2(-175, 0), new Vector2(46, 46));
+            Txt(r, g.Scores[k.Slot].ToString(), 44, new Vector2(1, .5f), new Vector2(-90, 0), Gold, TextAnchor.MiddleCenter, 160).fontStyle = FontStyle.Italic;
         }
         float y = 520;
         var cb = Box(col, new Vector2(.5f, 0), new Vector2(0, y + 200), new Vector2(560, 120), Dim);

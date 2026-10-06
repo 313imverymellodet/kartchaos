@@ -18,6 +18,12 @@ public static class KartBuild
         // keep the Standard shader in the build: the arena, boxes and rockets create Standard materials at runtime
         if (!AssetDatabase.LoadAssetAtPath<Material>("Assets/Resources/StandardKeep.mat"))
             AssetDatabase.CreateAsset(new Material(Shader.Find("Standard")), "Assets/Resources/StandardKeep.mat");
+        // ...and its emission variant: boxes, rockets, coins and the crown glow, and an unused variant gets stripped
+        var glow = AssetDatabase.LoadAssetAtPath<Material>("Assets/Resources/StandardGlowKeep.mat");
+        if (!glow) { glow = new Material(Shader.Find("Standard")); AssetDatabase.CreateAsset(glow, "Assets/Resources/StandardGlowKeep.mat"); }
+        glow.EnableKeyword("_EMISSION"); glow.SetColor("_EmissionColor", new Color(0.5f, 0.4f, 0.1f));
+        glow.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+        EditorUtility.SetDirty(glow);
 
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         var camGo = new GameObject("Main Camera");

@@ -39,18 +39,23 @@ public class BotBrain
         }
 
         Vector2 goal;
+        var coin = g.NearestCoin(k.Pos, k.Held == Item.None ? 11f : 5f);
         if (k.Held == Item.None || k.RollT > 0)
         {
-            // go shopping: nearest live box, weighted toward ones ahead
+            // go shopping: coins first if one is close, else the nearest live box (weighted toward ones ahead)
             var box = g.NearestBox(k.Pos, k.Fwd);
-            goal = box.HasValue ? box.Value : (tk != null ? tk.Pos : Vector2.zero);
+            if (coin.HasValue && (!box.HasValue || (coin.Value - k.Pos).sqrMagnitude < (box.Value - k.Pos).sqrMagnitude * 0.8f)) goal = coin.Value;
+            else goal = box.HasValue ? box.Value : (tk != null ? tk.Pos : Vector2.zero);
         }
         else
         {
             holdT += dt;
-            goal = tk != null ? tk.Pos + tk.Vel * 0.4f : Vector2.zero;
+            goal = coin.HasValue ? coin.Value : (tk != null ? tk.Pos + tk.Vel * 0.4f : Vector2.zero);   // grab coins on the way
             UseItem(tk, dt);
         }
+        // inside the closing ring, keep to the middle
+        float rr = Heist.RingRadius(g.Left);
+        if (rr < 60f && goal.magnitude > rr - 3f) goal = goal.normalized * (rr - 4f);
 
         var to = goal - k.Pos;
         if (to.sqrMagnitude < 0.01f) to = k.Fwd;
@@ -71,6 +76,7 @@ public class BotBrain
             float d = (o.Pos - k.Pos).magnitude;
             float s = d + Rand(0f, 12f) - (o.Score > k.Score ? 4f : 0f);   // a bit of grudge against leaders
             if (o.IsMe && Game.I.Save.matches < 3) s += 14f;                  // go easy on brand-new players
+            if (o.Golden) s -= 10f;                                           // everyone hunts the crown
             if (s < bestScore) { bestScore = s; best = o.Slot; }
         }
         return best;

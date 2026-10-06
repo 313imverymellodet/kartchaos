@@ -23,7 +23,7 @@ What the portal builds include:
 | `cg-landscape-1920x1080.png`, `cg-portrait-800x1200.png`, `cg-square-800x800.png` | CrazyGames covers |
 | `gd-512x512.png`, `gd-512x384.png`, `gd-200x120.png` | GameDistribution images |
 
-Preview videos for CrazyGames are not made yet. Ask and I'll record them the same way as SNACK MERGE's.
+Preview videos: `cg-video-landscape.mp4` and `cg-video-portrait.mp4` (19 s each, real matches).
 
 ## 3. Form answers (CrazyGames)
 | Field | Answer |
@@ -38,29 +38,23 @@ Preview videos for CrazyGames are not made yet. Ask and I'll record them the sam
 ## 4. Store listing copy
 **Title:** KART CHAOS
 
-**Short description:** Grab item boxes, fire rockets, drop mines and spin out your rivals in fast 2:30 kart battles!
+**Short description:** Hit karts to spill their coins, grab them, and steal the golden crown in fast 2:30 coin heists!
 
 **Description:**
-KART CHAOS is a fast top-down kart battle. Jump into an arena with up to 8 drivers, smash through **?** boxes and use what you get:
-- Rockets.
-- Triple shots.
-- Homing missiles.
-- Mines.
-- Shields.
-- Speed boosts.
+KART CHAOS is a top-down kart COIN HEIST. Coins are your score: grab them off the floor, then smash into rivals with rockets, mines, homing missiles and boosts. Every hit bursts half of their coins across the arena for anyone to snatch.
 
-Every hit you land is a point. Most points when the 2:30 timer runs out wins!
+Carry the most coins and you wear the GOLDEN CROWN: you glow gold, everyone hunts you, and a hit spills 75% of your stash. In the last 30 seconds the ring closes in and everyone gets packed into the middle.
 
 - Online matches start instantly, and bots fill every empty seat.
 - Play with friends: make a private room and share the code.
 - Two arenas: SPEEDWAY and PIT STOP.
-- Earn coins and unlock 14 vehicles, from cute karts to a fire truck.
+- Bank your coins and unlock 14 vehicles, from cute karts to a fire truck.
 
 **Controls:**
 - Keyboard: WASD or arrow keys to drive, SPACE to fire, ESC for the menu.
 - Touch: drag on the left side to drive, tap the item button to fire.
 
-**Tags / categories:** Racing, Multiplayer, Car, Action, Shooting, Battle, .io, Casual
+**Tags / categories:** Multiplayer, Car, Action, Battle, Coins, .io, Casual, Kart
 
 **Category:** Racing (or Action)
 

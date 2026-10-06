@@ -26,6 +26,9 @@ public class Game : MonoBehaviour
     readonly Kart[] bySlot = new Kart[8];
     readonly List<ItemBox> boxes = new List<ItemBox>();
     readonly Dictionary<int, Projectile> projs = new Dictionary<int, Projectile>();
+    readonly Dictionary<int, Coin> coins = new Dictionary<int, Coin>();
+    Transform coinRoot; Ring ring; bool ringWarned;
+    public int GoldenSlot = -1;
     public Kart Me;
     public bool Online, IsHost, Attract;
     public string RoomCode = "";
@@ -80,6 +83,8 @@ public class Game : MonoBehaviour
         kartRoot = new GameObject("Karts").transform; kartRoot.SetParent(world, false);
         projRoot = new GameObject("Projectiles").transform; projRoot.SetParent(world, false);
         boxRoot = new GameObject("Boxes").transform; boxRoot.SetParent(world, false);
+        coinRoot = new GameObject("Coins").transform; coinRoot.SetParent(world, false);
+        ring = Ring.Make(world);
         FX.Init(world);
         new GameObject("UI").AddComponent<UI>().Init();
         joinCode = WebBridge.RoomCode().ToUpperInvariant();
@@ -218,6 +223,8 @@ public class Game : MonoBehaviour
             case "f": RemoteFire(m); break;
             case "h": OnHit(m); break;
             case "b": if (m.i >= 0 && m.i < boxes.Count) boxes[m.i].Take(); break;
+            case "cs": AddCoins(m.c, null); break;
+            case "cg": CoinTaken(m); break;
             case "end": EndMatch(m.sc); break;
             case "error":
                 UI.I.Toast(m.msg ?? "SOMETHING WENT WRONG");
@@ -252,6 +259,8 @@ public class Game : MonoBehaviour
         projs.Clear();
         foreach (var b in boxes) if (b) Destroy(b.gameObject);
         boxes.Clear();
+        foreach (var c in coins.Values) if (c) Destroy(c.gameObject);
+        coins.Clear(); ringWarned = false; GoldenSlot = -1;
         Arena.Build(m.map, world);
         for (int i = 0; i < Arena.BoxSpots.Count; i++) boxes.Add(ItemBox.Make(i, Arena.BoxSpots[i], boxRoot));
         Scores = m.sc != null && m.sc.Length >= 8 ? (int[])m.sc.Clone() : new int[8];
@@ -260,6 +269,7 @@ public class Game : MonoBehaviour
         Me = null;
         foreach (var nk in m.karts) AddKart(nk, m.you);
         foreach (var k in Karts) k.Place(Arena.Spawns[k.Slot % Arena.Spawns.Count]);
+        AddCoins(m.c, null);
         if (Me != null) camFocus = new Vector3(Me.Pos.x, 0, Me.Pos.y);
         UI.I.RebuildTags();
     }
@@ -378,7 +388,7 @@ public class Game : MonoBehaviour
                 Vector2 input = Vector2.zero;
                 if (live)
                 {
-                    if (k.IsMe) input = UI.I.DriveInput();
+                    if (k.IsMe) input = devAuto && k.Brain != null ? k.Brain.Think(dt) : UI.I.DriveInput();
                     else if (k.Brain != null) input = k.Brain.Think(dt);
                 }
                 k.Drive(input, dt);
@@ -390,7 +400,31 @@ public class Game : MonoBehaviour
         Collide();
         if (!live) return;
         Pickups();
+        GrabCoins();
         StepProjectiles(dt);
+        // the closing ring: anyone outside is dragged back in and slowed
+        if (!Attract)
+        {
+            float rr = Heist.RingRadius(Left);
+            ring.Set(rr);
+            if (rr < 60f && !ringWarned) { ringWarned = true; UI.I.Banner("RING CLOSING!", "get to the middle"); Sfx.I.Beep(true); WebBridge.Event("ring_closing"); }
+            foreach (var k in Karts)
+            {
+                if (!k.Local || k.Away) continue;
+                float d = k.Pos.magnitude;
+                if (d > rr - Kart.R)
+                {
+                    var inward = -k.Pos / Mathf.Max(0.01f, d);
+                    k.Vel += inward * 30f * dt;
+                    if (k.Vel.magnitude > 8f) k.Vel = k.Vel.normalized * 8f;
+                    if (k.IsMe && UnityEngine.Random.value < 0.1f) Shake(0.08f);
+                }
+            }
+        }
+        else ring.Set(99f);
+        // the golden kart: unique leader with enough coins
+        GoldenSlot = Attract ? -1 : Heist.Golden(Scores, Karts);
+        foreach (var k in Karts) k.Golden = k.Slot == GoldenSlot;
     }
 
     // kart vs kart bumps; boosting karts knock others for six
@@ -557,7 +591,7 @@ public class Game : MonoBehaviour
         bool landed = victim.TakeHit(from);
         if (!landed || Attract) { if (Attract && landed) { /* attract mode: no scores */ } return; }
         if (by == victim.Slot) return;
-        Send(NetOut.Hit(victim.Slot, by, pid));
+        Send(NetOut.Hit(victim.Slot, by, pid, victim.Pos));
         if (victim.IsMe) WebBridge.Event("got_hit");
     }
 
@@ -568,7 +602,10 @@ public class Game : MonoBehaviour
         var v = KartAt(m.v); var by = KartAt(m.by);
         if (projs.TryGetValue(m.p, out var p) && p) { Destroy(p.gameObject); projs.Remove(m.p); }
         if (v != null && !v.Local && !v.Spinning) v.Spin(by != null ? by.Pos : v.Pos - v.Fwd);
-        if (v != null && by != null) UI.I.Feed((by == Me ? "YOU" : by.Name) + "  >  " + (v == Me ? "YOU" : v.Name), by.Tint);
+        int spilled = m.c != null ? m.c.Length / 4 : 0;
+        if (v != null) AddCoins(m.c, v.transform.position + Vector3.up * 0.8f);
+        if (spilled >= 6 && v != null) { FX.Confetti(v.transform.position + Vector3.up, 40); Shake(0.3f * Near(v.Pos)); }
+        if (v != null && by != null) UI.I.Feed((by == Me ? "YOU" : by.Name) + "  >  " + (v == Me ? "YOU" : v.Name) + (spilled > 0 ? "   -" + spilled : ""), by.Tint);
         if (by != null && by == Me)
         {
             hitsThisMatch++;
@@ -576,7 +613,73 @@ public class Game : MonoBehaviour
             if (hitsThisMatch == 1) WebBridge.Event("first_hit");
             if (hitsThisMatch % 5 == 0) WebBridge.Happy();
         }
-        if (v == Me && by != null) UI.I.Banner("", "HIT BY " + by.Name);
+        if (v == Me && by != null) UI.I.Banner("", "HIT BY " + by.Name + (spilled > 0 ? "  -  GRAB YOUR " + spilled + " COINS BACK!" : ""));
+        if (v != null && v.Slot == GoldenSlot && by != null) UI.I.Toast((by == Me ? "YOU" : by.Name) + " KNOCKED THE CROWN OFF " + (v == Me ? "YOU" : v.Name) + "!");
+    }
+
+    // ------------------------------------------------------------------ coins
+    // c: id, spot (-1 = spilled), x*100, z*100 per coin; spills arc out from `from`
+    void AddCoins(int[] c, Vector3? from)
+    {
+        if (c == null || Arena.I == null) return;
+        for (int i = 0; i + 3 < c.Length; i += 4)
+        {
+            int id = c[i];
+            if (coins.ContainsKey(id)) continue;
+            Vector2 pos;
+            if (c[i + 1] >= 0 && Arena.CoinSpots.Count > 0) pos = Arena.CoinSpots[c[i + 1] % Arena.CoinSpots.Count];
+            else
+            {
+                pos = new Vector2(c[i + 2] / 100f, c[i + 3] / 100f);
+                var v = Vector2.zero;
+                Arena.Resolve(ref pos, ref v, 0.6f, 0f);   // nudge spills off cover
+            }
+            coins[id] = Coin.Make(id, pos, from, coinRoot);
+        }
+    }
+
+    // Local karts claim coins they touch; the server decides who actually got each one.
+    void GrabCoins()
+    {
+        foreach (var k in Karts)
+        {
+            if (!k.Local || k.Spinning || k.Away) continue;
+            foreach (var c in coins.Values)
+            {
+                if (!c || c.Pending || !c.Ready) continue;
+                if ((c.Pos - k.Pos).sqrMagnitude > 1.5f * 1.5f) continue;
+                c.Pending = true;
+                Send(NetOut.Pick(c.Id, k.Slot));
+                if (k.IsMe) { Sfx.I.Coin(); if (!firstCoin) { firstCoin = true; WebBridge.Event("first_coin"); } }
+            }
+        }
+    }
+    bool firstCoin;
+
+    void CoinTaken(NetMsg m)
+    {
+        if (m.sc != null && m.sc.Length >= 8) Scores = (int[])m.sc.Clone();
+        foreach (var k in Karts) k.Score = Scores[k.Slot];
+        if (coins.TryGetValue(m.i, out var c) && c)
+        {
+            var who = KartAt(m.k);
+            FX.Pickup(c.transform.position, Kit.Hex("#FFC93C"));
+            if (who == Me && !c.Pending) Sfx.I.Coin();
+            Destroy(c.gameObject);
+        }
+        coins.Remove(m.i);
+    }
+
+    public Vector2? NearestCoin(Vector2 from, float within)
+    {
+        Vector2? best = null; float bd = within * within;
+        foreach (var c in coins.Values)
+        {
+            if (!c || c.Pending || !c.Ready) continue;
+            float d = (c.Pos - from).sqrMagnitude;
+            if (d < bd) { bd = d; best = c.Pos; }
+        }
+        return best;
     }
 
     public int HomingTarget(Vector2 from, Vector2 dir, int owner)
@@ -629,17 +732,20 @@ public class Game : MonoBehaviour
         order.RemoveAll(k => k.Away && k != Me);
         order.Sort((a, b) => Scores[b.Slot] != Scores[a.Slot] ? Scores[b.Slot].CompareTo(Scores[a.Slot]) : a.Slot.CompareTo(b.Slot));
         int place = Me != null ? order.IndexOf(Me) + 1 : order.Count;
-        int[] prize = { 50, 35, 25, 15, 12, 10, 10, 10 };
-        int myHits = Me != null ? Scores[Me.Slot] : 0;
-        int coins = prize[Mathf.Clamp(place - 1, 0, 7)] + myHits * 3;
-        Save.coins += coins; Save.matches++;
+        // wallet coins: everything you were carrying at the buzzer, plus a placing bonus
+        int[] prize = { 30, 20, 12, 8, 6, 5, 5, 5 };
+        int carried = Me != null ? Scores[Me.Slot] : 0;
+        int earned = prize[Mathf.Clamp(place - 1, 0, 7)] + carried;
+        Save.coins += earned; Save.matches++;
         if (place == 1) { Save.wins++; WebBridge.Happy(); Sfx.I.Win(); } else if (place <= 3) Sfx.I.Win(); else Sfx.I.Lose();
-        Save.bestHits = Mathf.Max(Save.bestHits, myHits);
+        Save.bestHits = Mathf.Max(Save.bestHits, carried);
         Persist();
         WebBridge.Event(Online ? "end_online" : "end_offline", place);
-        WebBridge.Event("end_hits", myHits);
+        WebBridge.Event("end_coins", carried);
+        WebBridge.Event("end_hits", hitsThisMatch);
         if (Online) { Send(NetOut.Simple("away")); sentAway = true; }
-        UI.I.ShowResults(order, place, coins);
+        ring.Set(99f);
+        UI.I.ShowResults(order, place, earned);
         if (place == 1) FX.Confetti(Me != null ? Me.transform.position + Vector3.up * 2 : Vector3.zero, 120);
     }
 
@@ -784,6 +890,9 @@ public class Game : MonoBehaviour
     }
     public bool CanPause => local != null && !Online;
 
+    // dev: SendMessage("Game", "DevAuto", "1") lets a bot brain drive your kart (for preview videos)
+    bool devAuto;
+    public void DevAuto(string on) { if (!Dev || Me == null) return; devAuto = on == "1"; Me.Brain = devAuto ? new BotBrain(Me, 0.95f, 4242) : null; }
     // dev: SendMessage("Game", "DevGive", "1".."6") hands you an item; "DevFire" uses it
     public void DevGive(string i) { if (Dev && Me != null && int.TryParse(i, out var n)) { Me.Held = (Item)Mathf.Clamp(n, 1, 6); Me.RollT = 0; } }
     public void DevFire(string _) { if (Dev && Me != null) UseItem(Me); }

@@ -22,6 +22,7 @@ public class Arena
     public readonly List<Vector2> Pads = new List<Vector2>();
     public readonly List<Vector3> Spawns = new List<Vector3>();   // x, z, yaw
     public readonly List<Transform> PadVis = new List<Transform>();
+    public readonly List<Vector2> CoinSpots = new List<Vector2>();   // open floor where arena coins pop up (server sends an index)
     const float RS = Kit.RaceScale;
 
     public static Arena Build(int map, Transform parent)
@@ -40,6 +41,17 @@ public class Arena
             a.Spawns.Add(new Vector3(p.x, p.y, Mathf.Atan2(-p.x, -p.y) * Mathf.Rad2Deg));
         }
         foreach (var pad in a.Pads) a.PadVis.Add(a.BoostPad(pad));
+        // a fixed grid of open floor, the same on every client
+        for (float x = -22f; x <= 22.01f; x += 4f)
+            for (float z = -22f; z <= 22.01f; z += 4f)
+            {
+                var p = new Vector2(x + ((int)(z / 4f) % 2 == 0 ? 0f : 2f), z);
+                if (a.Blocked(p, 1.4f)) continue;
+                bool near = false;
+                foreach (var b in a.BoxSpots) if ((b - p).sqrMagnitude < 6.25f) near = true;
+                foreach (var b in a.Pads) if ((b - p).sqrMagnitude < 6.25f) near = true;
+                if (!near) a.CoinSpots.Add(p);
+            }
         return a;
     }
 

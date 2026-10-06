@@ -10,6 +10,7 @@ public class Kart : MonoBehaviour
     public Item Held; public float RollT;        // item roulette still spinning
     public float SpinT, ShieldT, BoostT, InvulnT;
     public int Score;
+    public bool Golden;                  // carrying the most coins: crowned, glowing, and spills more when hit
     public BotBrain Brain;
 
     public const float R = 0.95f;
@@ -20,7 +21,8 @@ public class Kart : MonoBehaviour
     public float Speed => Vel.magnitude;
     public Vector2 Fwd => new Vector2(Mathf.Sin(Yaw * Mathf.Deg2Rad), Mathf.Cos(Yaw * Mathf.Deg2Rad));
 
-    Transform body, model, ring, bubble;
+    Transform body, model, ring, bubble, crown;
+    Material ringMat;
     Transform[] wheels = new Transform[0]; bool[] front; Quaternion[] wheelBase;
     Renderer[] rends; Material bubbleMat;
     float lean, pitch, wheelSpin, spinAngle, hop, smokeT, padCd, lastYaw, blinkT;
@@ -42,6 +44,7 @@ public class Kart : MonoBehaviour
         ringGo.transform.localPosition = new Vector3(0, 0.04f, 0); ringGo.transform.localRotation = Quaternion.Euler(90, 0, 0);
         ringGo.transform.localScale = Vector3.one * 3.0f;
         var rm = new Material(Kit.UnlitAlpha) { mainTexture = Kit.Ring, color = Kit.A(tint, 0.85f) };
+        k.ringMat = rm;
         var rr = ringGo.GetComponent<MeshRenderer>(); rr.sharedMaterial = rm; rr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         k.ring = ringGo.transform;
         // shield bubble
@@ -50,6 +53,21 @@ public class Kart : MonoBehaviour
         k.bubbleMat = new Material(Kit.UnlitAlpha) { color = Kit.A(Items.Colors[(int)Item.Shield], 0.28f) };
         var br = b.GetComponent<MeshRenderer>(); br.sharedMaterial = k.bubbleMat; br.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         k.bubble = b.transform; b.SetActive(false);
+        // crown: a gold band of points floating over the leader
+        var crownGo = new GameObject("crown"); crownGo.transform.SetParent(go.transform, false);
+        var gold = new Material(Shader.Find("Standard")) { color = Kit.Hex("#FFC93C") };
+        gold.SetFloat("_Glossiness", 0.8f); gold.SetFloat("_Metallic", 0.5f); gold.EnableKeyword("_EMISSION"); gold.SetColor("_EmissionColor", Kit.Hex("#FFB000") * 0.5f);
+        var bandGo = Kit.MeshObject("band", Kit.SphereMesh); bandGo.transform.SetParent(crownGo.transform, false);
+        bandGo.transform.localScale = new Vector3(1.1f, 0.35f, 1.1f); bandGo.GetComponent<MeshRenderer>().sharedMaterial = gold;
+        for (int i = 0; i < 5; i++)
+        {
+            float a = i / 5f * Mathf.PI * 2f;
+            var pt = Kit.MeshObject("pt", Kit.SphereMesh); pt.transform.SetParent(crownGo.transform, false);
+            pt.transform.localPosition = new Vector3(Mathf.Cos(a) * 0.45f, 0.3f, Mathf.Sin(a) * 0.45f);
+            pt.transform.localScale = new Vector3(0.22f, 0.55f, 0.22f);
+            pt.GetComponent<MeshRenderer>().sharedMaterial = gold;
+        }
+        k.crown = crownGo.transform; crownGo.SetActive(false);
         return k;
     }
 
@@ -255,6 +273,14 @@ public class Kart : MonoBehaviour
         bool show = !Away && (InvulnT <= 0 || SpinT > 0 || Mathf.Repeat(Time.time, 0.16f) < 0.1f);
         if (rends != null) foreach (var r in rends) if (r) r.enabled = show;
         ring.gameObject.SetActive(!Away);
+        crown.gameObject.SetActive(Golden && !Away);
+        if (Golden)
+        {
+            crown.localPosition = new Vector3(0, 2.3f + Mathf.Sin(Time.time * 3f) * 0.12f + body.localPosition.y, 0);
+            crown.localRotation = Quaternion.Euler(0, Time.time * 90f, 0);
+            if (Random.value < 0.35f) FX.Trail(transform.position + Vector3.up * 0.4f + Random.insideUnitSphere * 0.6f, Kit.Hex("#FFC93C"));
+        }
+        ringMat.color = Golden ? Kit.A(Kit.Hex("#FFC93C"), 0.95f) : Kit.A(Tint, 0.85f);
         ring.localScale = Vector3.one * (IsMe ? 3.3f + Mathf.Sin(Time.time * 4f) * 0.15f : 2.8f);
     }
 }
